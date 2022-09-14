@@ -236,7 +236,7 @@ def subir_pdf_google_drive(idp, idpront, nome_completo, i):
 
         else:
 
-            print('Falta campo a ser preeenhido no prontuário: ' + nome_completo + '_' + idpront )
+            print('Falta campo a ser preenchido no prontuário: ' + nome_completo + '_' + idpront )
 
             if ALWAYS_CONFIRM_BEFORE_PROCEED == 'SIM':
                 userInput = input('Prosseguir? (s/n)')
@@ -403,74 +403,78 @@ df = df.loc[df['Data da visita']>=corte]
 
 print('Total de relatórios pendentes: ' + str(len(df)))
 
-if len(df) > 0:
+if len(df) == 0:
+    print('EXECUÇÃO ENCERRADA.')
+    sys.exit()
 
-    # para cada relatório pendente...
-    for i in df.index:
+# para cada relatório pendente...
+for i in df.index:
 
-        # obter parâmetros
-        idp = df.loc[i,'ID Amplimed']
-        nome_completo = df.loc[i,'Nome completo']
-        nome_medico = df.loc[i,'primeiro_nome_medico']
-        data_visita = df.loc[i,'Data da visita']
-        abrangencia = df.loc[i,'data_limite_tolerancia_inicial']
+    # obter parâmetros
+    idp = df.loc[i,'ID Amplimed']
+    nome_completo = df.loc[i,'Nome completo']
+    nome_medico = df.loc[i,'primeiro_nome_medico']
+    data_visita = df.loc[i,'Data da visita']
+    abrangencia = df.loc[i,'data_limite_tolerancia_inicial']
+    
+    # realizar print no console para conferência
+    print("\n------------------------")
+    print(nome_completo)
+    print("ID do paciente no Amplimed: " + idp)
+    print("Primeiro nome do médico: " + nome_medico)
+    #print(data_visita)
+    print("Linha Google Sheet - Visitas: " + str(i+2))
+    
+    # analisar quantidade de visitas pendentes do mesmo paciente
+    qnt_visitas = len(df.loc[df['ID Amplimed']==idp])
+    
+    try:
+        # gerar a base de prontuários do paciente
+        base_prontuarios = analisar_cadastro_anterior(idp)
+        base_prontuarios = base_prontuarios.loc[base_prontuarios['Datas']>= corte]
         
-        # realizar print no console para conferência
-        print("\n------------------------")
-        print(nome_completo)
-        print("ID do paciente no Amplimed: " + idp)
-        print("Primeiro nome do médico: " + nome_medico)
-        #print(data_visita)
-        print("Linha Google Sheet - Visitas: " + str(i+2))
+        # obter do paciente todos os prontuários que já foram criados em outras visitas
+        base_prontuarios = base_prontuarios.merge(completa, how='left', on='cod.prontuário')
+        base_prontuarios = base_prontuarios.loc[base_prontuarios['realizado']!=1]
         
-        # analisar quantidade de visitas pendentes do mesmo paciente
-        qnt_visitas = len(df.loc[df['ID Amplimed']==idp])
+        # obter todos os prontuários que não são do médico que está planejado a visita. Caso planeje a visita para 1 médico,
+        # porém o prontuários esteja com nome de outro médico ele não identificará por causa disso.
+        base_prontuarios = base_prontuarios.loc[base_prontuarios['primeiro_nome_medico']==nome_medico]
         
-        try:
-            # gerar a base de prontuários do paciente
-            base_prontuarios = analisar_cadastro_anterior(idp)
-            base_prontuarios = base_prontuarios.loc[base_prontuarios['Datas']>= corte]
+        # filtrar prontuários muito antigos com data abaixo da data previsivel de visita menos o parâmetro abrangência
+        base_prontuarios = base_prontuarios.loc[base_prontuarios['Datas']>= data_visita - (data_visita - abrangencia)]
+        
+        # obter todos aqueles prontuários que não apresentam enunciado (falha na confecção do prontuário)
+        base_prontuarios = base_prontuarios.loc[base_prontuarios['enunciado']==1]
+        
+        # reconfigurar os índices da base para que seja simples obter os dados novos
+        base_prontuarios = base_prontuarios.reset_index(drop=True)
+        
+        # contagem da quantidade de prontuários que faltam para preencher
+        qnt_prontuarios = len(base_prontuarios)
+        #print(qnt_prontuarios)
+        
+        if qnt_prontuarios == 0:
+            print('Não foi possível encontrar prontuários a serem adicionados')
             
-            # obter do paciente todos os prontuários que já foram criados em outras visitas
-            base_prontuarios = base_prontuarios.merge(completa, how='left', on='cod.prontuário')
-            base_prontuarios = base_prontuarios.loc[base_prontuarios['realizado']!=1]
-            
-            # obter todos os prontuários que não são do médico que está planejado a visita. Caso planeje a visita para 1 médico,
-            # porém o prontuários esteja com nome de outro médico ele não identificará por causa disso.
-            base_prontuarios = base_prontuarios.loc[base_prontuarios['primeiro_nome_medico']==nome_medico]
-            
-            # filtrar prontuários muito antigos com data abaixo da data previsivel de visita menos o parâmetro abrangência
-            base_prontuarios = base_prontuarios.loc[base_prontuarios['Datas']>= data_visita - (data_visita - abrangencia)]
-            
-            # obter todos aqueles prontuários que não apresentam enunciado (falha na confecção do prontuário)
-            base_prontuarios = base_prontuarios.loc[base_prontuarios['enunciado']==1]
-            
-            # reconfigurar os índices da base para que seja simples obter os dados novos
-            base_prontuarios = base_prontuarios.reset_index(drop=True)
-            
-            # contagem da quantidade de prontuários que faltam para preencher
-            qnt_prontuarios = len(base_prontuarios)
-            #print(qnt_prontuarios)
-            
-            if qnt_prontuarios == 0:
-                print('Não foi possível encontrar prontuários a serem adicionados')
+        else:
+            if qnt_visitas == 1:
+                idpront = base_prontuarios.iloc[0,:]['cod.prontuário']
+                print(idpront)
                 
+                subir_pdf_google_drive(idp, idpront, nome_completo, i)
             else:
-                if qnt_visitas == 1:
-                    idpront = base_prontuarios.iloc[0,:]['cod.prontuário']
-                    print(idpront)
-                   
-                    subir_pdf_google_drive(idp, idpront, nome_completo, i)
-                else:
-                    print('Quantidade de visitas pendentes está maior que 1')
-                
-        except Exception as e:
-            print('   Exception gerada: ', e)
-            print("Não há prontuários finalizados para o paciente " + str(nome_completo))
-        
-        if ALWAYS_CONFIRM_BEFORE_PROCEED == 'SIM':
-            userInput = input('Prosseguir? (s/n)')
-            if userInput == 'n' :
-                sys.exit()
+                print('Quantidade de visitas pendentes está maior que 1')
+            
+    except Exception as e:
+        print('   Exception gerada: ', e)
+        print("Não há prontuários finalizados para o paciente " + str(nome_completo))
+    
+    if ALWAYS_CONFIRM_BEFORE_PROCEED == 'SIM':
+        userInput = input('Prosseguir? (s/n)')
+        if userInput == 'n' :
+            sys.exit()
 
-        time.sleep(WAIT_TIME_SECONDS)
+    time.sleep(WAIT_TIME_SECONDS)
+
+print('EXECUÇÃO ENCERRADA.')
