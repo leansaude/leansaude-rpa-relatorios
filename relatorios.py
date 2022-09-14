@@ -93,23 +93,20 @@ def analisar_prontuario_completo(link_completo):
 ##################################
 # Gera a base de prontuários tratada do Amplimed
 def analisar_cadastro_anterior(idp):
+    params = {}
+    params['codp'] = str(idp)
+    params['action'] = 'GET_HEADERS'
+    params['ordem'] = 'DESC'
+    params['codcon'] = '0'
 
-    # @todo: vide issue https://github.com/leansaude/leansaude-rpa-relatorios/issues/1
-    payload = 'codp='+ str(idp) + '&action=GET_HEADERS&ordem=DESC&codcon=0'
-    headers = {
-      'authorization': AMPLIMED_AUTHORIZATION_KEY,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
-    
-    response = requests.request("POST", AMPLIMED_HISTORICO_URL, headers=headers, data=payload)
-    #print(response)
+    response = callAmplimedApi(AMPLIMED_HISTORICO_URL, 'POST', urlencode(params))
     
     beautiful = response.text
     beautiful = beautiful.replace("\\n", "")
     beautiful = beautiful.replace("\n", "")
     beautiful = beautiful.replace("\\", "")
     
-    soup2 = BeautifulSoup(beautiful,"html5lib")
+    soup2 = BeautifulSoup(beautiful, "html5lib")
     
     ides = []
     datas = []
@@ -246,7 +243,8 @@ def subir_pdf_google_drive(idp, idpront, nome_completo, i):
                 if userInput == 'n' :
                     sys.exit()
         
-    except:
+    except Exception as e:
+        print('   Exception gerada: ', e)
         print("Não foi possível obter o PDF do prontuário do(a) paciente " + str(nome_completo))
 
         if ALWAYS_CONFIRM_BEFORE_PROCEED == 'SIM':
@@ -390,7 +388,7 @@ sheet = googleSheetService.spreadsheets()
 result = sheet.values().get(spreadsheetId=SPREADSHEET_MANAGEMENT[ENVIRONMENT],
                             range=RANGE).execute()
 values = result.get('values', [])
-print(values)
+#print(values)
 df = pd.DataFrame(values[1:], columns=values[0])
 completa = df[['cod.prontuário']].drop_duplicates()
 completa = completa.dropna()
@@ -418,11 +416,12 @@ if len(df) > 0:
         abrangencia = df.loc[i,'data_limite_tolerancia_inicial']
         
         # realizar print no console para conferência
+        print("\n------------------------")
         print(nome_completo)
-        print(idp)
-        print(nome_medico)
+        print("ID do paciente no Amplimed: " + idp)
+        print("Primeiro nome do médico: " + nome_medico)
         #print(data_visita)
-        print('Linha Google Sheets: ' + str(i+2))
+        print("Linha Google Sheet - Visitas: " + str(i+2))
         
         # analisar quantidade de visitas pendentes do mesmo paciente
         qnt_visitas = len(df.loc[df['ID Amplimed']==idp])
@@ -465,8 +464,9 @@ if len(df) > 0:
                 else:
                     print('Quantidade de visitas pendentes está maior que 1')
                 
-        except:
-            print('Não há prontuários finalizados para o paciente ' + str(nome_completo))
+        except Exception as e:
+            print('   Exception gerada: ', e)
+            print("Não há prontuários finalizados para o paciente " + str(nome_completo))
         
         if ALWAYS_CONFIRM_BEFORE_PROCEED == 'SIM':
             userInput = input('Prosseguir? (s/n)')
