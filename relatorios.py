@@ -99,9 +99,8 @@ def analisar_cadastro_anterior(idp):
     params['ordem'] = 'DESC'
     params['codcon'] = '0'
 
-    response = callAmplimedApi(AMPLIMED_HISTORICO_URL, 'POST', urlencode(params))
+    beautiful = callAmplimedApi(AMPLIMED_HISTORICO_URL, 'POST', urlencode(params))
     
-    beautiful = response.text
     beautiful = beautiful.replace("\\n", "")
     beautiful = beautiful.replace("\n", "")
     beautiful = beautiful.replace("\\", "")
@@ -424,7 +423,7 @@ for i in df.index:
     print("Primeiro nome do médico: " + nome_medico)
     #print(data_visita)
     print("Linha Google Sheet - Visitas: " + str(i+2))
-    
+   
     # analisar quantidade de visitas pendentes do mesmo paciente
     qnt_visitas = len(df.loc[df['ID Amplimed']==idp])
     
@@ -470,10 +469,10 @@ for i in df.index:
         print('   Exception gerada: ', e)
         print("Não há prontuários finalizados para o paciente " + str(nome_completo))
     
-    if ALWAYS_CONFIRM_BEFORE_PROCEED == 'SIM':
-        userInput = input('Prosseguir? (s/n)')
-        if userInput == 'n' :
-            sys.exit()
+    #if ALWAYS_CONFIRM_BEFORE_PROCEED == 'SIM':
+    #    userInput = input('Prosseguir? (s/n)')
+    #    if userInput == 'n' :
+    #        sys.exit()
 
     time.sleep(WAIT_TIME_SECONDS)
 
