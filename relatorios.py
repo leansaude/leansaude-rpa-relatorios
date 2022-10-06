@@ -67,7 +67,7 @@ googleSheetService = None
 
 # Analisa o PDF, checando se todos os campos críticos estão preenchidos
 def analisar_prontuario_completo(link_completo):
-    url = 'https://api.leansaude.com.br/v1/pdfContents.php?s=' + link_completo + '&origin=gdextended'
+    url = 'https://api.leansaude.com.br/v1/pdfContents.php?s=' + link_completo + '&origin=gdextended&v=2'
     
     response = requests.request("GET", url)
     
@@ -159,11 +159,13 @@ def subir_pdf_google_drive(idp, idpront, nome_completo, i):
     try:
         # obtém o conteúdo direto do PDF fazendo uma chamada à API Amplimed
         params = {}
-        params['usuclin'] = AMPLIMED_USUCLIN
-        params['codcon'] = idpront
-        params_encoded = urlencode(params) + "&campos[]=infos&campos[]=anamnese&campos[]=habvida&campos[]=listpro&campos[]=conclusao&campos[]=plantrat&campos[]=docs&campos[]=prescr"
+        params['campos'] = '{"aps":false,"anamnese":true,"personalizados":true,"problemas":true,"conclusao":true,"tratamento":true,"documentos":true,"prescricoes":true}'
 
-        pdfRequestResult = callAmplimedApi(AMPLIMED_RELATORIO_URL, 'POST', params_encoded)
+        params['modulos'] = '{"odontologia":true,"psicologia":true,"personalizado":true}'
+
+        params_encoded = urlencode(params)
+
+        pdfRequestResult = callAmplimedApi(AMPLIMED_RELATORIO_URL + '/' + idpront, 'GET', params_encoded)
         print('Obtido conteúdo do PDF')
         
         # decodifica e salva em disco o conteúdo do PDF
